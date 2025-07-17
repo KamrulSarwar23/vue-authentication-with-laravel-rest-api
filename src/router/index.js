@@ -36,6 +36,20 @@ const routes = [
     name: "admin-dashboard",
     component: () => import("../views/Dashboards/AdminDashboard.vue"),
     meta: { requiresAuth: true, role: "admin" },
+    children: [
+      {
+        path: "home",
+        name: "DashboardHome",
+        component: () => import("../views/Dashboards/Adminhome.vue"),
+        meta: { requiresAuth: true, role: "admin" },
+      },
+      {
+        path: "setting",
+        name: "DashboardSetting",
+        component: () => import("../views/Dashboards/AdminSetting.vue"),
+        meta: { requiresAuth: true, role: "admin" },
+      },
+    ],
   },
   {
     path: "/vendor/dashboard",

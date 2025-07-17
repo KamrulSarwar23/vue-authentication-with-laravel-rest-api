@@ -6,10 +6,8 @@ import { useApi } from "../composables/useApi";
 export const useAuthStore = defineStore("auth", () => {
   const router = useRouter();
   const { api } = useApi();
-
   const user = ref(null);
   const token = ref(localStorage.getItem("token"));
-
   const isAuthenticated = computed(() => !!token.value);
 
   async function login(credentials) {

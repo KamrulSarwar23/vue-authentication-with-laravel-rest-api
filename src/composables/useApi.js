@@ -1,4 +1,3 @@
-import { ref } from "vue";
 import axios from "axios";
 
 export function useApi() {
@@ -10,7 +9,6 @@ export function useApi() {
     },
   });
 
-  // Add request interceptor to include token
   api.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -18,19 +16,6 @@ export function useApi() {
     }
     return config;
   });
-
-  // Add response interceptor to handle 401 errors
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response && error.response.status === 401) {
-        const authStore = useAuthStore();
-        authStore.resetAuth();
-        router.push({ name: "login" });
-      }
-      return Promise.reject(error);
-    }
-  );
 
   return { api };
 }
