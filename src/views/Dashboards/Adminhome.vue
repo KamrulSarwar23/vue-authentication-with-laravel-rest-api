@@ -2,7 +2,8 @@
 import { ref, onMounted } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { useApi } from "../../composables/useApi";
-
+import { toast } from "vue3-toastify";
+import "vue3-toastify/dist/index.css";
 const { api } = useApi();
 
 const authStore = useAuthStore();
@@ -17,7 +18,14 @@ const taskForm = ref({
   description: "",
   status: "Pending",
   priority: "Medium",
-  dueDate: "",
+  due_date: "",
+});
+
+const pagination = ref({
+  current_page: 1,
+  last_page: 1,
+  per_page: 5,
+  total: 0,
 });
 
 // Dialog controls
@@ -30,12 +38,21 @@ const statusOptions = ["Pending", "In Progress", "Completed", "On Hold"];
 const priorityOptions = ["Low", "Medium", "High", "Critical"];
 
 // Fetch tasks from API
-const fetchTasks = async () => {
+const fetchTasks = async (page = 1) => {
   try {
     loading.value = true;
     error.value = null;
-    const response = await api.get("/tasks");
-    tasks.value = response.data.tasks;
+    const response = await api.get("/tasks", {
+      params: { page },
+    });
+    tasks.value = response.data.tasks.data;
+    // Store pagination info
+    pagination.value = {
+      current_page: response.data.tasks.current_page,
+      last_page: response.data.tasks.last_page,
+      per_page: response.data.tasks.per_page,
+      total: response.data.tasks.total,
+    };
   } catch (err) {
     error.value = err.response?.data?.message || "Failed to fetch tasks";
     console.error("Error fetching tasks:", err);
@@ -52,7 +69,7 @@ const openNewTaskDialog = () => {
     description: "",
     status: "Pending",
     priority: "Medium",
-    dueDate: "",
+    due_date: "",
   };
   isEditing.value = false;
   showDialog.value = true;
@@ -75,13 +92,19 @@ const saveTask = async () => {
       description: taskForm.value.description,
       status: taskForm.value.status,
       priority: taskForm.value.priority,
-      due_date: taskForm.value.dueDate,
+      due_date: taskForm.value.due_date,
     };
 
     if (isEditing.value) {
       await api.put(`/tasks/${taskForm.value.id}`, data);
+      toast("Task Updated Successfully", {
+        autoClose: 3000,
+      });
     } else {
       await api.post("/tasks", data);
+      toast("Task Created Successfully", {
+        autoClose: 3000,
+      });
     }
 
     showDialog.value = false;
@@ -100,6 +123,9 @@ const deleteTask = async (id) => {
 
   try {
     await api.delete(`/tasks/${id}`);
+    toast("Task Deleted Successfully", {
+      autoClose: 3000,
+    });
     await fetchTasks();
   } catch (err) {
     error.value = err.response?.data?.message || "Failed to delete task";
@@ -196,6 +222,51 @@ onMounted(fetchTasks);
           </tr>
         </tbody>
       </table>
+
+      <div v-if="tasks.length > 0" class="pagination-container">
+        <button
+          class="pagination-button prev-button"
+          :disabled="pagination.current_page === 1"
+          @click="fetchTasks(pagination.current_page - 1)"
+        >
+          <svg
+            class="pagination-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Previous
+        </button>
+
+        <div class="page-info-container">
+          <span class="page-info">
+            Page
+            <span class="current-page">{{ pagination.current_page }}</span> of
+            <span class="total-pages">{{ pagination.last_page }}</span>
+          </span>
+          <span class="total-items"> {{ pagination.total }} tasks total </span>
+        </div>
+
+        <button
+          class="pagination-button next-button"
+          :disabled="pagination.current_page === pagination.last_page"
+          @click="fetchTasks(pagination.current_page + 1)"
+        >
+          Next
+          <svg
+            class="pagination-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Task Form Dialog -->
@@ -261,7 +332,7 @@ onMounted(fetchTasks);
 
           <div class="form-group">
             <label for="dueDate">Due Date</label>
-            <input type="date" id="dueDate" v-model="taskForm.dueDate" />
+            <input type="date" id="dueDate" v-model="taskForm.due_date" />
           </div>
 
           <div class="dialog-actions">
@@ -289,6 +360,184 @@ onMounted(fetchTasks);
 </template>
 
 <style scoped>
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 2rem 0;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pagination-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.pagination-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.pagination-button:hover::before {
+  left: 100%;
+}
+
+.pagination-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.pagination-button:active {
+  transform: translateY(0);
+}
+
+.pagination-button:disabled {
+  background: linear-gradient(135deg, #94a3b8 0%, #cbd5e1 100%);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 1px 2px rgba(148, 163, 184, 0.2);
+}
+
+.pagination-button:disabled::before {
+  display: none;
+}
+
+.pagination-button:disabled:hover {
+  transform: none;
+  box-shadow: 0 1px 2px rgba(148, 163, 184, 0.2);
+}
+
+.pagination-icon {
+  width: 1rem;
+  height: 1rem;
+  transition: transform 0.3s ease;
+}
+
+.pagination-button:hover .pagination-icon {
+  transform: scale(1.1);
+}
+
+.prev-button .pagination-icon {
+  margin-right: 0.25rem;
+}
+
+.next-button .pagination-icon {
+  margin-left: 0.25rem;
+}
+
+.page-info-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 1rem;
+}
+
+.page-info {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+}
+
+.current-page {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 8px;
+  font-weight: 700;
+  min-width: 2rem;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.total-pages {
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.total-items {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  text-align: center;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem 1rem;
+  }
+
+  .pagination-button {
+    width: 100%;
+    justify-content: center;
+    max-width: 200px;
+  }
+
+  .page-info-container {
+    order: -1;
+    margin-bottom: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-container {
+    margin: 1rem 0;
+    padding: 1rem 0.5rem;
+  }
+
+  .pagination-button {
+    padding: 0.625rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .page-info {
+    font-size: 0.875rem;
+  }
+
+  .total-items {
+    font-size: 0.7rem;
+  }
+}
+
 .admin-dashboard {
   padding: 20px;
   max-width: 1200px;

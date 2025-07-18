@@ -43,12 +43,6 @@ const routes = [
         component: () => import("../views/Dashboards/Adminhome.vue"),
         meta: { requiresAuth: true, role: "admin" },
       },
-      {
-        path: "setting",
-        name: "DashboardSetting",
-        component: () => import("../views/Dashboards/AdminSetting.vue"),
-        meta: { requiresAuth: true, role: "admin" },
-      },
     ],
   },
   {
